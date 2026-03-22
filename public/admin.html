@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - La Bella Tavola</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #c9a227; --dark: #1a1a1a; --sidebar: #222; --light: #f5f5f5; }
+        body { font-family: 'Inter', sans-serif; background: var(--dark); color: var(--light); display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background: var(--sidebar); padding: 2rem; position: fixed; height: 100vh; }
+        .sidebar h1 { color: var(--primary); font-size: 1.5rem; margin-bottom: 2rem; }
+        .sidebar nav a { display: block; padding: 1rem; color: #aaa; text-decoration: none; border-radius: 8px; margin-bottom: 0.5rem; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: #333; color: var(--primary); }
+        .main { margin-left: 250px; padding: 2rem; flex: 1; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--sidebar); padding: 1.5rem; border-radius: 12px; }
+        .stat-card h3 { font-size: 2rem; color: var(--primary); }
+        .stat-card p { color: #aaa; font-size: 0.9rem; }
+        .filters { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .filters input, .filters select { padding: 0.75rem 1rem; background: var(--sidebar); border: 1px solid #333; border-radius: 8px; color: #fff; }
+        .bookings-table { width: 100%; background: var(--sidebar); border-radius: 12px; overflow: hidden; }
+        .bookings-table table { width: 100%; border-collapse: collapse; }
+        .bookings-table th, .bookings-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #333; }
+        .bookings-table th { background: #2a2a2a; color: var(--primary); font-weight: 600; }
+        .bookings-table tr:hover { background: #2a2a2a; }
+        .status { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 500; }
+        .status-confirmed { background: #2a5a2a; color: #8f8; }
+        .status-pending { background: #5a5a2a; color: #ff8; }
+        .status-cancelled { background: #5a2a2a; color: #f88; }
+        .actions button { padding: 0.5rem 1rem; margin-right: 0.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .btn-confirm { background: #2a5a2a; color: #8f8; }
+        .btn-cancel { background: #5a2a2a; color: #f88; }
+        .btn-delete { background: #333; color: #aaa; }
+        .no-bookings { text-align: center; padding: 3rem; color: #666; }
+        @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>🍽️ Admin</h1>
+        <nav>
+            <a href="#" class="active">Dashboard</a>
+            <a href="/">View Site</a>
+        </nav>
+    </div>
+    
+    <div class="main">
+        <h2 style="margin-bottom: 2rem;">Dashboard</h2>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><h3 id="statTables">-</h3><p>Tables</p></div>
+            <div class="stat-card"><h3 id="statToday">-</h3><p>Today's Bookings</p></div>
+            <div class="stat-card"><h3 id="statTotal">-</h3><p>Total Bookings</p></div>
+            <div class="stat-card"><h3 id="statPending">-</h3><p>Pending</p></div>
+        </div>
+        
+        <div class="filters">
+            <input type="date" id="filterDate">
+            <select id="filterStatus">
+                <option value="">All Status</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <button onclick="loadBookings()" style="padding: 0.75rem 1.5rem; background: var(--primary); color: var(--dark); border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Filter</button>
+        </div>
+        
+        <div class="bookings-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Table</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Party</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bookingsBody"></tbody>
+            </table>
+            <div class="no-bookings" id="noBookings">No bookings found</div>
+        </div>
+    </div>
+
+    <script>
+        const API = '';
+        
+        async function loadStats() {
+            const res = await fetch(API + '/api/stats');
+            const stats = await res.json();
+            document.getElementById('statTables').textContent = stats.totalTables;
+            document.getElementById('statToday').textContent = stats.todayBookings;
+            document.getElementById('statTotal').textContent = stats.totalBookings;
+            document.getElementById('statPending').textContent = stats.pendingBookings;
+        }
+        
+        async function loadBookings() {
+            const date = document.getElementById('filterDate').value;
+            const status = document.getElementById('filterStatus').value;
+            
+            let url = API + '/api/bookings?';
+            if (date) url += `date=${date}&`;
+            if (status) url += `status=${status}`;
+            
+            const res = await fetch(url);
+            const bookings = await res.json();
+            
+            const tbody = document.getElementById('bookingsBody');
+            const noBookings = document.getElementById('noBookings');
+            
+            if (bookings.length === 0) {
+                tbody.innerHTML = '';
+                noBookings.style.display = 'block';
+                return;
+            }
+            
+            noBookings.style.display = 'none';
+            tbody.innerHTML = bookings.map(b => `
+                <tr>
+                    <td>#${b.id}</td>
+                    <td>${b.customer_name}</td>
+                    <td>${b.table_name} (${b.capacity}p)</td>
+                    <td>${b.booking_date}</td>
+                    <td>${b.booking_time}</td>
+                    <td>${b.party_size}</td>
+                    <td>${b.customer_email}<br>${b.customer_phone}</td>
+                    <td><span class="status status-${b.status}">${b.status}</span></td>
+                    <td class="actions">
+                        ${b.status !== 'confirmed' ? `<button class="btn-confirm" onclick="updateStatus(${b.id}, 'confirmed')">✓</button>` : ''}
+                        ${b.status !== 'cancelled' ? `<button class="btn-cancel" onclick="updateStatus(${b.id}, 'cancelled')">✗</button>` : ''}
+                        <button class="btn-delete" onclick="deleteBooking(${b.id})">🗑</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function updateStatus(id, status) {
+            await fetch(API + `/api/bookings/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            loadBookings();
+            loadStat();
+        }
+        
+        async function deleteBooking(id) {
+            if (confirm('Delete this booking?')) {
+                await fetch(API + `/api/bookings/${id}`, { method: 'DELETE' });
+                loadBookings();
+                loadStat();
+            }
+        }
+        
+        loadStat();
+        loadBookings();
+    </script>
+</body>
+</html>
